@@ -466,7 +466,9 @@ code {
   font-size: 13px;
   color: var(--muted);
 }
-.credit b { font: 700 15px/1 var(--f-display); color: var(--ink); letter-spacing: -0.01em; }
+.credit b,
+.credit a { font: 700 15px/1 var(--f-display); color: var(--ink); letter-spacing: -0.01em; text-decoration: none; }
+.credit a:hover { text-decoration: underline; }
 </style>
 
 <div class="page">
@@ -707,7 +709,7 @@ code {
     </div>
   </div>
 
-  <footer class="credit">Made by <b>Funappi</b></footer>
+  <footer class="credit">Made by <a href="https://github.com/orgs/funappi/repositories" target="_blank" rel="noopener noreferrer">Funappi</a></footer>
 </div>
 
 <script>
