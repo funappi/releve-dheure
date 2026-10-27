@@ -6,7 +6,7 @@ Un outil autonome et minimaliste pour noter ses horaires de travail, calculer se
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
 ![Dépendances](https://img.shields.io/badge/dépendances-0-brightgreen?style=flat-square)
-![Licence](https://img.shields.io/badge/licence-MIT-blue?style=flat-square)
+![Licence](https://img.shields.io/badge/licence-PolyForm%20Noncommercial-orange?style=flat-square)
 
 ---
 
@@ -70,3 +70,9 @@ dim 18       13h15-18h15 5h
 ```
 
 ---
+
+## Licence
+
+Ce projet est distribué sous la licence [PolyForm Noncommercial 1.0.0](LICENSE) : utilisation, modification et partage libres pour tout **usage non commercial**.
+
+**Usage commercial : contacte-moi pour une licence séparée** — [Funappi](https://github.com/funappi).
