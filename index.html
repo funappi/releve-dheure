@@ -467,8 +467,10 @@ code {
   color: var(--muted);
 }
 .credit b,
-.credit a { font: 700 15px/1 var(--f-display); color: var(--ink); letter-spacing: -0.01em; text-decoration: none; }
-.credit a:hover { text-decoration: underline; }
+.credit a { font: 700 15px/1 var(--f-display); letter-spacing: -0.01em; text-decoration: none; }
+/* Le lien reprend l'accent de l'appli (bleu, adapté au thème clair/sombre) avec un léger effet au survol */
+.credit a { position: relative; z-index: 1; display: inline-block; padding: 8px 4px; color: inherit; text-decoration: underline; text-underline-offset: 4px; transition: color .2s, text-shadow .2s; }
+.credit a:hover, .credit a:focus-visible { color: var(--accent); text-shadow: 0 0 14px var(--accent); }
 </style>
 
 <div class="page">
