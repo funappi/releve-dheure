@@ -33,7 +33,7 @@ L'application fonctionne comme un bloc-notes : tu saisis tes horaires ligne par 
 
 ## Utilisation
 
-1. Ouvre le fichier `Relevé_d_heures.html` dans n'importe quel navigateur moderne.
+1. Ouvre le fichier `Index.html` dans n'importe quel navigateur moderne.
 2. Saisis tes horaires dans la zone de gauche.
 3. Le calcul se déclenche automatiquement 10 secondes après la dernière frappe, immédiatement via le bouton **Calculer**, ou avec le raccourci `Ctrl + Entrée` (`Cmd + Entrée` sur macOS).
 4. Renseigne ton taux horaire (en net ou en brut) pour obtenir l'estimation financière.
