@@ -466,6 +466,10 @@ code {
 .sfoot { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--rule); }
 .num[aria-invalid="true"] { border-color: var(--warn); }
 button:disabled { opacity: 0.45; cursor: default; }
+.grow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--rule); }
+.grow .n { width: 64px; }
+.gtxt { color: var(--muted); font-size: 14px; }
+.grow .sq { margin-left: auto; }
 .setnote { margin: 0 0 16px; max-width: 62ch; font-size: 13px; color: var(--muted); }
 
 /* ---------- Footer ---------- */
@@ -525,7 +529,7 @@ button:disabled { opacity: 0.45; cursor: default; }
             <legend>Mode de saisie</legend>
             <label><input type="radio" name="mode" value="detail"><span>Détaillé</span></label>
             <label><input type="radio" name="mode" value="weeks"><span>Par semaine</span></label>
-            <label><input type="radio" name="mode" value="total"><span>Total</span></label>
+            <label><input type="radio" name="mode" value="total"><span>Par mois</span></label>
           </fieldset>
         </div>
 
@@ -549,11 +553,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 
         <div id="pane-simple" hidden>
           <div id="simpleWeeks" hidden>
-            <ul class="slist" id="wlist"></ul>
-            <div class="sfoot">
-              <button type="button" id="wadd">Ajouter une semaine</button>
-              <button type="button" id="wdel">Retirer la dernière</button>
-            </div>
+            <ul class="slist" id="glist"></ul>
+            <div class="sfoot"><button type="button" id="gadd">Ajouter une ligne</button></div>
           </div>
           <div id="simpleTotal" hidden>
             <label class="opt" for="tot"><span class="opt-txt"><span class="opt-name">Total d'heures du mois</span><span class="opt-desc">Multiplié par votre taux horaire.</span></span><input id="tot" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Total d'heures du mois"></label>
@@ -576,7 +577,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 
         <div class="empty" id="empty" hidden>
           <p id="emptyDetail">Aucun horaire reconnu pour ce mois. Écrivez par exemple <code>mercredi 14 14h30-18h30</code> dans vos notes.</p>
-          <p id="emptyWeeks" hidden>Aucune heure indiquée pour ce mois. Remplissez une semaine, par exemple <code>35</code> ou <code>31h30</code>.</p>
+          <p id="emptyWeeks" hidden>Aucune heure indiquée pour ce mois. Indiquez vos heures par semaine, par exemple <code>35</code> ou <code>31h30</code>.</p>
           <p id="emptyTotal" hidden>Aucune heure indiquée pour ce mois. Écrivez votre total, par exemple <code>120</code> ou <code>120h30</code>.</p>
         </div>
 
@@ -602,7 +603,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 
   <!-- ===================== PARAMÈTRES ===================== -->
   <div id="view-params" role="tabpanel" aria-labelledby="tab-params" hidden>
-    <p class="setnote">Heures sup, majorations, pause et arrondi ne concernent que le mode Détaillé. Les modes Par semaine et Total font simplement heures × taux horaire.</p>
+    <p class="setnote">Heures sup, majorations, pause et arrondi ne concernent que le mode Détaillé. Les modes Par semaine et Par mois font simplement heures × taux horaire.</p>
     <div class="settings">
 
       <section class="group panel" aria-labelledby="g-look">
@@ -1081,10 +1082,12 @@ function exampleFor(slot) {
     'mercredi ' + (mon + 2) + ' 14h-17h30'
   ].join('\n');
 }
-/* ---------- Modes simplifiés : par semaine / total ---------- */
+/* ---------- Modes simplifiés : par semaine / par mois ---------- */
+const MAX_WEEKS = 6;
+const asText = x => x == null ? '' : String(x);
 /* Lit "35", "35,5", "35.25", "35h", "35h30" ou "35:30". null = vide, NaN = non reconnu. Renvoie des minutes. */
 function parseHours(v) {
-  const s = String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, '');
+  const s = asText(v).trim().toLowerCase().replace(/\s+/g, '');
   if (!s) return null;
   let m = s.match(/^(\d{1,4})[h:](\d{2})?(?:min)?$/);
   if (m) { const mi = +(m[2] || 0); return mi > 59 ? NaN : +m[1] * 60 + mi; }
@@ -1092,35 +1095,57 @@ function parseHours(v) {
   if (m) return Math.round(parseFloat(m[1].replace(',', '.')) * 60);
   return NaN;
 }
-function computeSimple(mode, data) {
-  const list = mode === 'weeks'
-    ? (data.w || []).map((v, i) => ({ label: 'Semaine ' + (i + 1), raw: v }))
-    : [{ label: 'Total d\'heures', raw: data.t }];
-  const items = list.map(it => {
-    const p = parseHours(it.raw);
-    return { ...it, empty: p === null, invalid: p !== null && Number.isNaN(p), min: p === null || Number.isNaN(p) ? 0 : p };
+/* Nombre de semaines : entier de 1 à 6. null = vide, NaN = non reconnu. */
+function parseCount(v) {
+  const s = asText(v).trim();
+  if (!s) return null;
+  return /^\d{1,2}$/.test(s) && +s >= 1 && +s <= MAX_WEEKS ? +s : NaN;
+}
+const weekItem = (count, unit) => ({ count, unit, min: count * unit, label: count + ' × ' + fmtDur(unit), invalid: false, empty: false, fields: [] });
+const badItem = (label, raw, fields) => ({ count: 0, unit: 0, min: 0, label, raw, invalid: true, empty: false, fields });
+/* Lignes « n semaines de h » : les semaines identiques sont déjà regroupées par la saisie. */
+function computeWeeks(data) {
+  const items = [];
+  data.g.forEach((r, i) => {
+    const p = parseHours(r.h), c = parseCount(r.n);
+    if (p === null) { if (Number.isNaN(c)) items.push(badItem('Ligne ' + (i + 1), r.n, ['gn' + i])); return; }
+    if (Number.isNaN(p)) { items.push(badItem('Ligne ' + (i + 1), r.h, ['gh' + i])); return; }
+    if (Number.isNaN(c)) { items.push(badItem('Ligne ' + (i + 1), r.n, ['gn' + i])); return; }
+    items.push(weekItem(c === null ? 1 : c, p));
   });
+  return items;
+}
+function computeSimple(mode, data) {
+  let items;
+  if (mode === 'weeks') items = computeWeeks(data);
+  else {
+    const p = parseHours(data.t);
+    items = [{ count: 0, unit: 0, label: 'Heures du mois', raw: data.t, empty: p === null, invalid: p !== null && Number.isNaN(p), min: p === null || Number.isNaN(p) ? 0 : p, fields: ['tot'] }];
+  }
   return { simple: true, mode, items, paid: items.reduce((a, it) => a + it.min, 0), has: items.some(it => !it.empty) };
 }
 /* Somme des montants de chaque ligne, arrondis au centime comme dans le relevé détaillé. */
 function simpleMoney(res, r) {
   return r ? Math.round(res.items.reduce((a, it) => a + pay(it.min, r), 0) * 100) / 100 : 0;
 }
+const blankSimple = () => ({ t: '', g: [{ n: '', h: '' }] });
+const isBlankSimple = d => !d.t.trim() && d.g.every(r => !r.n.trim() && !r.h.trim());
 function cleanSimple(raw) {
   const out = {};
   if (!raw || typeof raw !== 'object') return out;
   for (const k of Object.keys(raw)) {
     if (!/^\d{4}-\d{2}$/.test(k)) continue;
     const d = raw[k] || {};
-    const w = Array.isArray(d.w) ? d.w.slice(0, 6).map(x => String(x == null ? '' : x)) : [];
-    while (w.length < 4) w.push('');
-    out[k] = { w, t: typeof d.t === 'string' ? d.t : '' };
+    let g = Array.isArray(d.g) ? d.g.slice(0, 8).map(r => ({ n: asText(r && r.n), h: asText(r && r.h) }))
+      : Array.isArray(d.w) ? d.w.slice(0, MAX_WEEKS).map(asText).filter(x => x.trim()).map(h => ({ n: '', h })) : [];   /* d.w : ancien format, une valeur par semaine */
+    if (!g.length) g = blankSimple().g;
+    out[k] = { t: typeof d.t === 'string' ? d.t : '', g };
   }
   return out;
 }
 function simpleRecapText(res, S, rate, rateB) {
   const out = [];
-  if (res.mode === 'weeks') res.items.filter(it => !it.empty).forEach(it => out.push(it.label + ' : ' + fmtDur(it.min)));
+  if (res.mode === 'weeks') res.items.forEach(it => out.push(it.invalid ? it.label + ' : valeur non reconnue' : it.label + ' = ' + fmtDur(it.min)));
   out.push('Total : ' + fmtDur(res.paid));
   if (S.showPay && rate) {
     out.push('Net : ' + fmtMoney(simpleMoney(res, rate)) + ' à ' + fmtMoney(rate) + '/h');
@@ -1133,12 +1158,12 @@ function simpleTableText(res, S, rate, rateB) {
   const head = ['Période', 'Heures', 'Heures décimales'];
   if (money) { head.push('Net (€)'); if (S.showBrut) head.push('Brut (€)'); }
   const lines = [head];
-  const rows = res.mode === 'weeks' ? res.items.filter(it => !it.empty).map(it => ({ label: it.label, min: it.min, one: it })) : [];
+  const rows = res.mode === 'weeks' ? res.items.filter(it => !it.empty && !it.invalid).map(it => ({ label: it.label, min: it.min, one: it })) : [];
   rows.push({ label: 'Total', min: res.paid, one: null });
   rows.forEach(r => {
     const line = [r.label, fmtDur(r.min), dec2(r.min / 60)];
     if (money) {
-      const m = (x) => r.one ? pay(r.one.min, x) : simpleMoney(res, x);
+      const m = x => r.one ? pay(r.one.min, x) : simpleMoney(res, x);
       line.push(dec2(m(rate))); if (S.showBrut) line.push(dec2(m(rateB)));
     }
     lines.push(line);
@@ -1165,7 +1190,7 @@ const RATEB_KEY = 'releve-heures-taux-brut';
 const SRC_KEY = 'releve-heures-taux-source';
 const MODE_KEY = 'releve-heures-mode';
 const SIMPLE_KEY = 'releve-heures-simple';
-const MODE_TITLES = { detail: 'Vos horaires', weeks: 'Vos heures par semaine', total: 'Votre total d\'heures' };
+const MODE_TITLES = { detail: 'Vos horaires', weeks: 'Vos heures par semaine', total: 'Vos heures du mois' };
 
 const ta = $('notes'), bar = $('bar'), status = $('status'), stext = $('stext');
 const clearBtn = $('clear'), tfig = $('tfig'), tside = $('tside');
@@ -1191,9 +1216,9 @@ function persist() {
 }
 function syncBadge() { $('exbadge').hidden = mode !== 'detail' || ta.value !== exampleFor(slot); }
 
-/* ---------- Modes simplifiés (par semaine / total) ---------- */
-const DEFAULT_WEEKS = 4, MAX_WEEKS = 6;
-const blankSimple = () => ({ w: Array(DEFAULT_WEEKS).fill(''), t: '' });
+/* ---------- Modes simplifiés (par semaine / par mois) ---------- */
+const MAX_ROWS = 8;
+const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 function curSimple(create) {
   const k = slotKey(slot);
   if (!simple[k] && create) simple[k] = blankSimple();
@@ -1201,21 +1226,19 @@ function curSimple(create) {
 }
 function saveSimple() {
   const here = slotKey(slot);
-  Object.keys(simple).forEach(k => {
-    const d = simple[k];
-    if (k !== here && !d.t.trim() && d.w.every(x => !x.trim())) delete simple[k];
-  });
+  Object.keys(simple).forEach(k => { if (k !== here && isBlankSimple(simple[k])) delete simple[k]; });
   store.set(SIMPLE_KEY, JSON.stringify(simple));
 }
 function buildSimple() {
   const d = curSimple();
-  $('wlist').innerHTML = d.w.map((v, i) =>
-    '<li><label class="opt" for="w' + i + '"><span class="opt-txt"><span class="opt-name">Semaine ' + (i + 1) + '</span></span>' +
-    '<input id="w' + i + '" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" data-w="' + i + '" value="' + esc(v) + '" aria-label="Heures de la semaine ' + (i + 1) + '"></label></li>'
-  ).join('');
   $('tot').value = d.t;
-  $('wadd').disabled = d.w.length >= MAX_WEEKS;
-  $('wdel').disabled = d.w.length <= 1;
+  $('glist').innerHTML = d.g.map((r, i) =>
+    '<li class="grow"><input id="gn' + i + '" class="num n" type="text" inputmode="numeric" autocomplete="off" placeholder="1" data-g="' + i + '" data-f="n" value="' + esc(r.n) + '" aria-label="Nombre de semaines, ligne ' + (i + 1) + '">' +
+    '<span class="gtxt">semaines de</span>' +
+    '<input id="gh' + i + '" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="35" data-g="' + i + '" data-f="h" value="' + esc(r.h) + '" aria-label="Heures par semaine, ligne ' + (i + 1) + '">' +
+    '<button type="button" class="sq" data-gdel="' + i + '" aria-label="Retirer la ligne ' + (i + 1) + '"' + (d.g.length <= 1 ? ' disabled' : '') + '>' + XICON + '</button></li>'
+  ).join('');
+  $('gadd').disabled = d.g.length >= MAX_ROWS;
 }
 function applyMode() {
   const simpleMode = mode !== 'detail';
@@ -1237,22 +1260,27 @@ function setMode(m) {
 $('modeseg').addEventListener('change', e => { if (e.target.name === 'mode' && e.target.checked) setMode(e.target.value); });
 $('pane-simple').addEventListener('input', e => {
   const el = e.target;
-  if (el.id === 'tot') curSimple(true).t = el.value;
-  else if (el.dataset.w !== undefined) curSimple(true).w[+el.dataset.w] = el.value;
-  else return;
+  if (!(el.id === 'tot' || el.dataset.g !== undefined)) return;
+  const d = curSimple(true);
+  if (el.id === 'tot') d.t = el.value;
+  else d.g[+el.dataset.g][el.dataset.f] = el.value;
   saveSimple(); showMonth(); run(false);
 });
-$('wadd').addEventListener('click', () => {
-  const d = curSimple(true);
-  if (d.w.length < MAX_WEEKS) d.w.push('');
-  saveSimple(); buildSimple(); run(false);
-  const f = $('w' + (d.w.length - 1)); if (f) f.focus();
+$('pane-simple').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'gadd') {
+    const d = curSimple(true);
+    if (d.g.length < MAX_ROWS) d.g.push({ n: '', h: '' });
+    saveSimple(); buildSimple(); run(false);
+    const f = $('gn' + (d.g.length - 1)); if (f) f.focus();
+  } else if (b.dataset.gdel !== undefined) {
+    const d = curSimple(true);
+    if (d.g.length > 1) d.g.splice(+b.dataset.gdel, 1);
+    saveSimple(); buildSimple(); run(false);
+  }
 });
-$('wdel').addEventListener('click', () => {
-  const d = curSimple(true);
-  if (d.w.length > 1) d.w.pop();
-  saveSimple(); buildSimple(); run(false);
-});
+
 function setStatus(state, text) { status.dataset.state = state; stext.textContent = text; }
 
 function showMonth() {
@@ -1316,9 +1344,10 @@ function weekHtml(w) {
 function showEmpty(id) { ['emptyDetail', 'emptyWeeks', 'emptyTotal'].forEach(x => { $(x).hidden = x !== id; }); }
 function simpleRowHtml(it, weekly) {
   const f = [];
-  if (it.invalid) f.push('<span class="chip warn">Valeur non reconnue : ' + esc(String(it.raw).trim()) + '</span>');
-  else if (weekly && it.min > 168 * 60) f.push('<span class="chip warn">Plus de 168 h dans une semaine</span>');
-  return '<li class="row"><span class="day">' + esc(it.label) + '</span><span class="dur">' + fmtDur(it.min) + moneyLines(it.min, true) + '</span>' +
+  if (it.invalid) f.push('<span class="chip warn">Valeur non reconnue : ' + esc(String(it.raw).trim()) + (/^gn/.test(it.fields[0]) ? ' (1 à ' + MAX_WEEKS + ' semaines)' : '') + '</span>');
+  else if (weekly && it.unit > 168 * 60) f.push('<span class="chip warn">Plus de 168 h dans une semaine</span>');
+  const dur = it.invalid ? '0h' : (weekly ? '= ' : '') + fmtDur(it.min);
+  return '<li class="row"><span class="day">' + esc(it.label) + '</span><span class="dur">' + dur + moneyLines(it.min, true) + '</span>' +
     (f.length ? '<span class="flags">' + f.join('') + '</span>' : '') + '</li>';
 }
 function renderSimple(res, flash) {
@@ -1330,10 +1359,8 @@ function renderSimple(res, flash) {
   $('acts').hidden = !has || !S.showExport;
   if (!has) $('fallback').hidden = true;
 
-  res.items.forEach((it, i) => {
-    const el = $(weekly ? 'w' + i : 'tot');
-    if (el) el.setAttribute('aria-invalid', String(it.invalid));
-  });
+  document.querySelectorAll('#pane-simple [aria-invalid="true"]').forEach(el => el.setAttribute('aria-invalid', 'false'));
+  res.items.forEach(it => it.fields.forEach(id => { const el = $(id); if (el) el.setAttribute('aria-invalid', 'true'); }));
   const shown = weekly ? res.items.filter(it => !it.empty) : res.items.filter(it => it.invalid);
   const html = shown.length
     ? '<section class="week"><h3 class="week-head">' + (weekly ? 'Heures par semaine' : 'À vérifier') + '</h3><ul class="rows">' + shown.map(it => simpleRowHtml(it, weekly)).join('') + '</ul></section>'
@@ -1349,7 +1376,8 @@ function renderSimple(res, flash) {
     if (!weekly && !res.items[0].invalid) side.push('<span>' + fmtDur(res.paid) + ' × ' + fmtMoney(rate) + ' = <b>' + fmtMoney(simpleMoney(res, rate)) + '</b>' + (S.showBrut ? ' net' : '') + '</span>');
   }
   if (S.showDecimal) side.push('<span><b>' + (res.paid / 60).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' h</b> en décimal</span>');
-  if (weekly) side.push('<span>' + pl(res.items.filter(it => !it.empty).length, 'semaine') + ' saisie' + (res.items.filter(it => !it.empty).length > 1 ? 's' : '') + '</span>');
+  const nw = res.items.reduce((a, it) => a + it.count, 0);
+  if (weekly && nw) side.push('<span>' + pl(nw, 'semaine') + ' saisie' + (nw > 1 ? 's' : '') + '</span>');
   tside.innerHTML = side.join('');
   if (flash) { tfig.classList.remove('fresh'); void tfig.offsetWidth; tfig.classList.add('fresh'); }
 }
@@ -1485,7 +1513,7 @@ function applyTheme() {
 }
 function ledeText() {
   if (mode === 'weeks') {
-    return 'Notez le nombre d\'heures de chaque semaine : le total et le montant se calculent tout de suite.' +
+    return 'Notez vos heures par semaine en regroupant les semaines identiques, par exemple 3 semaines de 35h : le total et le montant se calculent tout de suite.' +
       (S.showPay ? ' Indiquez votre taux horaire net ou brut : l\'autre se calcule tout seul.' : '') +
       ' Choisissez ce qui s\'affiche dans Paramètres.';
   }
