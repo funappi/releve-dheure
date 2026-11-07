@@ -457,6 +457,17 @@ code {
 .example b { color: var(--ink); font-weight: 500; }
 .danger-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 
+/* ---------- Mode de saisie ---------- */
+.modebar { padding: 0 16px 14px; }
+.modeseg { display: flex; width: 100%; }
+.modeseg label { flex: 1 1 0; min-width: 0; }
+.modeseg span { padding: 8px 6px; text-align: center; }
+.slist { margin: 0; padding: 0; list-style: none; }
+.sfoot { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--rule); }
+.num[aria-invalid="true"] { border-color: var(--warn); }
+button:disabled { opacity: 0.45; cursor: default; }
+.setnote { margin: 0 0 16px; max-width: 62ch; font-size: 13px; color: var(--muted); }
+
 /* ---------- Footer ---------- */
 .credit {
   margin-top: 40px;
@@ -509,21 +520,49 @@ code {
           <h2 id="notes-h">Vos horaires</h2>
           <span class="badge" id="exbadge" hidden>Exemple, à remplacer</span>
         </div>
-        <textarea id="notes" aria-labelledby="notes-h" spellcheck="false" autocomplete="off" autocapitalize="off" rows="10" placeholder="lundi 19 9h-12h 14h-17h"></textarea>
-        <div class="track" aria-hidden="true"><i id="bar"></i></div>
-        <div class="foot">
-          <div class="status" id="status" data-state="ok"><span class="dot"></span><span id="stext">À jour</span></div>
-          <div class="btns">
-            <button type="button" id="clear">Effacer</button>
-            <button type="button" id="calc" class="primary">Calculer</button>
-          </div>
+        <div class="modebar">
+          <fieldset class="seg modeseg" id="modeseg">
+            <legend>Mode de saisie</legend>
+            <label><input type="radio" name="mode" value="detail"><span>Détaillé</span></label>
+            <label><input type="radio" name="mode" value="weeks"><span>Par semaine</span></label>
+            <label><input type="radio" name="mode" value="total"><span>Total</span></label>
+          </fieldset>
         </div>
-        <ul class="hints" id="hints">
-          <li>Plusieurs plages sur une ligne : <code>lundi 19 9h30-12h10 13h30-16h10</code></li>
-          <li>Écrivez les heures avec un h (<code>14h</code>, <code>9h30</code>) reliées par un tiret. Un total noté en fin de ligne est comparé au calcul.</li>
-          <li>Le numéro du jour (<code>19</code> ou <code>19/10</code>) sert à regrouper les semaines et à repérer les dimanches.</li>
-          <li>Le passage de minuit est géré : <code>22h-2h</code> compte 4h. Ctrl + Entrée lance le calcul.</li>
-        </ul>
+
+        <div id="pane-detail">
+          <textarea id="notes" aria-labelledby="notes-h" spellcheck="false" autocomplete="off" autocapitalize="off" rows="10" placeholder="lundi 19 9h-12h 14h-17h"></textarea>
+          <div class="track" aria-hidden="true"><i id="bar"></i></div>
+          <div class="foot">
+            <div class="status" id="status" data-state="ok"><span class="dot"></span><span id="stext">À jour</span></div>
+            <div class="btns">
+              <button type="button" id="clear">Effacer</button>
+              <button type="button" id="calc" class="primary">Calculer</button>
+            </div>
+          </div>
+          <ul class="hints" id="hints">
+            <li>Plusieurs plages sur une ligne : <code>lundi 19 9h30-12h10 13h30-16h10</code></li>
+            <li>Écrivez les heures avec un h (<code>14h</code>, <code>9h30</code>) reliées par un tiret. Un total noté en fin de ligne est comparé au calcul.</li>
+            <li>Le numéro du jour (<code>19</code> ou <code>19/10</code>) sert à regrouper les semaines et à repérer les dimanches.</li>
+            <li>Le passage de minuit est géré : <code>22h-2h</code> compte 4h. Ctrl + Entrée lance le calcul.</li>
+          </ul>
+        </div>
+
+        <div id="pane-simple" hidden>
+          <div id="simpleWeeks" hidden>
+            <ul class="slist" id="wlist"></ul>
+            <div class="sfoot">
+              <button type="button" id="wadd">Ajouter une semaine</button>
+              <button type="button" id="wdel">Retirer la dernière</button>
+            </div>
+          </div>
+          <div id="simpleTotal" hidden>
+            <label class="opt" for="tot"><span class="opt-txt"><span class="opt-name">Total d'heures du mois</span><span class="opt-desc">Multiplié par votre taux horaire.</span></span><input id="tot" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Total d'heures du mois"></label>
+          </div>
+          <ul class="hints" id="shints">
+            <li>Écrivez <code>35</code>, <code>35,5</code> ou <code>35h30</code>. Le calcul est immédiat.</li>
+            <li>Calcul simple : heures × taux horaire, sans majoration, pause ni arrondi. Le taux se règle à droite.</li>
+          </ul>
+        </div>
       </section>
 
       <section class="panel" aria-labelledby="stmt-h">
@@ -536,7 +575,9 @@ code {
         </div>
 
         <div class="empty" id="empty" hidden>
-          <p>Aucun horaire reconnu pour ce mois. Écrivez par exemple <code>mercredi 14 14h30-18h30</code> dans vos notes.</p>
+          <p id="emptyDetail">Aucun horaire reconnu pour ce mois. Écrivez par exemple <code>mercredi 14 14h30-18h30</code> dans vos notes.</p>
+          <p id="emptyWeeks" hidden>Aucune heure indiquée pour ce mois. Remplissez une semaine, par exemple <code>35</code> ou <code>31h30</code>.</p>
+          <p id="emptyTotal" hidden>Aucune heure indiquée pour ce mois. Écrivez votre total, par exemple <code>120</code> ou <code>120h30</code>.</p>
         </div>
 
         <div id="ledger">
@@ -561,6 +602,7 @@ code {
 
   <!-- ===================== PARAMÈTRES ===================== -->
   <div id="view-params" role="tabpanel" aria-labelledby="tab-params" hidden>
+    <p class="setnote">Heures sup, majorations, pause et arrondi ne concernent que le mode Détaillé. Les modes Par semaine et Total font simplement heures × taux horaire.</p>
     <div class="settings">
 
       <section class="group panel" aria-labelledby="g-look">
@@ -590,7 +632,7 @@ code {
       </section>
 
       <section class="group panel" aria-labelledby="g-calc">
-        <header><h2 id="g-calc">Calcul automatique</h2><p>Quand le relevé se met à jour après une modification.</p></header>
+        <header><h2 id="g-calc">Calcul automatique</h2><p>Quand le relevé se met à jour après une modification, en mode Détaillé. Les autres modes calculent tout de suite.</p></header>
         <div class="opt">
           <fieldset class="seg">
             <legend>Délai du calcul automatique</legend>
@@ -702,7 +744,7 @@ code {
           <button type="button" id="resetSettings">Rétablir</button>
         </div>
         <div class="opt">
-          <div class="opt-txt"><span class="opt-name">Tous les relevés</span><span class="opt-desc" id="wipeDesc">Efface les horaires de tous les mois et les taux horaires.</span></div>
+          <div class="opt-txt"><span class="opt-name">Tous les relevés</span><span class="opt-desc" id="wipeDesc">Efface les horaires et les heures de tous les mois, et les taux horaires.</span></div>
           <div class="danger-row">
             <button type="button" id="wipe">Tout effacer</button>
             <button type="button" id="wipeNo" hidden>Annuler</button>
@@ -1039,6 +1081,70 @@ function exampleFor(slot) {
     'mercredi ' + (mon + 2) + ' 14h-17h30'
   ].join('\n');
 }
+/* ---------- Modes simplifiés : par semaine / total ---------- */
+/* Lit "35", "35,5", "35.25", "35h", "35h30" ou "35:30". null = vide, NaN = non reconnu. Renvoie des minutes. */
+function parseHours(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, '');
+  if (!s) return null;
+  let m = s.match(/^(\d{1,4})[h:](\d{2})?(?:min)?$/);
+  if (m) { const mi = +(m[2] || 0); return mi > 59 ? NaN : +m[1] * 60 + mi; }
+  m = s.match(/^(\d{1,4}(?:[.,]\d{1,2})?)(?:h|heures?)?$/);
+  if (m) return Math.round(parseFloat(m[1].replace(',', '.')) * 60);
+  return NaN;
+}
+function computeSimple(mode, data) {
+  const list = mode === 'weeks'
+    ? (data.w || []).map((v, i) => ({ label: 'Semaine ' + (i + 1), raw: v }))
+    : [{ label: 'Total d\'heures', raw: data.t }];
+  const items = list.map(it => {
+    const p = parseHours(it.raw);
+    return { ...it, empty: p === null, invalid: p !== null && Number.isNaN(p), min: p === null || Number.isNaN(p) ? 0 : p };
+  });
+  return { simple: true, mode, items, paid: items.reduce((a, it) => a + it.min, 0), has: items.some(it => !it.empty) };
+}
+/* Somme des montants de chaque ligne, arrondis au centime comme dans le relevé détaillé. */
+function simpleMoney(res, r) {
+  return r ? Math.round(res.items.reduce((a, it) => a + pay(it.min, r), 0) * 100) / 100 : 0;
+}
+function cleanSimple(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const k of Object.keys(raw)) {
+    if (!/^\d{4}-\d{2}$/.test(k)) continue;
+    const d = raw[k] || {};
+    const w = Array.isArray(d.w) ? d.w.slice(0, 6).map(x => String(x == null ? '' : x)) : [];
+    while (w.length < 4) w.push('');
+    out[k] = { w, t: typeof d.t === 'string' ? d.t : '' };
+  }
+  return out;
+}
+function simpleRecapText(res, S, rate, rateB) {
+  const out = [];
+  if (res.mode === 'weeks') res.items.filter(it => !it.empty).forEach(it => out.push(it.label + ' : ' + fmtDur(it.min)));
+  out.push('Total : ' + fmtDur(res.paid));
+  if (S.showPay && rate) {
+    out.push('Net : ' + fmtMoney(simpleMoney(res, rate)) + ' à ' + fmtMoney(rate) + '/h');
+    if (S.showBrut) out.push('Brut : ' + fmtMoney(simpleMoney(res, rateB)) + ' à ' + fmtMoney(rateB) + '/h');
+  }
+  return out.join('\n');
+}
+function simpleTableText(res, S, rate, rateB) {
+  const money = S.showPay && rate;
+  const head = ['Période', 'Heures', 'Heures décimales'];
+  if (money) { head.push('Net (€)'); if (S.showBrut) head.push('Brut (€)'); }
+  const lines = [head];
+  const rows = res.mode === 'weeks' ? res.items.filter(it => !it.empty).map(it => ({ label: it.label, min: it.min, one: it })) : [];
+  rows.push({ label: 'Total', min: res.paid, one: null });
+  rows.forEach(r => {
+    const line = [r.label, fmtDur(r.min), dec2(r.min / 60)];
+    if (money) {
+      const m = (x) => r.one ? pay(r.one.min, x) : simpleMoney(res, x);
+      line.push(dec2(m(rate))); if (S.showBrut) line.push(dec2(m(rateB)));
+    }
+    lines.push(line);
+  });
+  return lines.map(l => l.map(c => String(c).replace(/[\t\n]/g, ' ')).join('\t')).join('\n');
+}
 /* PURE-END */
 
 const $ = id => document.getElementById(id);
@@ -1057,6 +1163,9 @@ const SET_KEY = 'releve-heures-reglages';
 const RATE_KEY = 'releve-heures-taux';
 const RATEB_KEY = 'releve-heures-taux-brut';
 const SRC_KEY = 'releve-heures-taux-source';
+const MODE_KEY = 'releve-heures-mode';
+const SIMPLE_KEY = 'releve-heures-simple';
+const MODE_TITLES = { detail: 'Vos horaires', weeks: 'Vos heures par semaine', total: 'Votre total d\'heures' };
 
 const ta = $('notes'), bar = $('bar'), status = $('status'), stext = $('stext');
 const clearBtn = $('clear'), tfig = $('tfig'), tside = $('tside');
@@ -1068,6 +1177,7 @@ const slotKey = s => s.y + '-' + pad(s.m);
 
 let S = sanitize(null);
 let months = {};
+let mode = 'detail', simple = {};
 let slot = { ...today };
 let timer = null, tick = null, t0 = 0, backup = null, msgTimer = null;
 let rate = 0, rateB = 0, src = 'net', last = compute('', S, slot);
@@ -1079,14 +1189,77 @@ function persist() {
   if (ta.value.trim()) months[k] = ta.value; else delete months[k];
   saveMonths();
 }
-function syncBadge() { $('exbadge').hidden = ta.value !== exampleFor(slot); }
+function syncBadge() { $('exbadge').hidden = mode !== 'detail' || ta.value !== exampleFor(slot); }
+
+/* ---------- Modes simplifiés (par semaine / total) ---------- */
+const DEFAULT_WEEKS = 4, MAX_WEEKS = 6;
+const blankSimple = () => ({ w: Array(DEFAULT_WEEKS).fill(''), t: '' });
+function curSimple(create) {
+  const k = slotKey(slot);
+  if (!simple[k] && create) simple[k] = blankSimple();
+  return simple[k] || blankSimple();
+}
+function saveSimple() {
+  const here = slotKey(slot);
+  Object.keys(simple).forEach(k => {
+    const d = simple[k];
+    if (k !== here && !d.t.trim() && d.w.every(x => !x.trim())) delete simple[k];
+  });
+  store.set(SIMPLE_KEY, JSON.stringify(simple));
+}
+function buildSimple() {
+  const d = curSimple();
+  $('wlist').innerHTML = d.w.map((v, i) =>
+    '<li><label class="opt" for="w' + i + '"><span class="opt-txt"><span class="opt-name">Semaine ' + (i + 1) + '</span></span>' +
+    '<input id="w' + i + '" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" data-w="' + i + '" value="' + esc(v) + '" aria-label="Heures de la semaine ' + (i + 1) + '"></label></li>'
+  ).join('');
+  $('tot').value = d.t;
+  $('wadd').disabled = d.w.length >= MAX_WEEKS;
+  $('wdel').disabled = d.w.length <= 1;
+}
+function applyMode() {
+  const simpleMode = mode !== 'detail';
+  document.querySelectorAll('input[name="mode"]').forEach(r => { r.checked = r.value === mode; });
+  $('pane-detail').hidden = simpleMode;
+  $('pane-simple').hidden = !simpleMode;
+  $('simpleWeeks').hidden = mode !== 'weeks';
+  $('simpleTotal').hidden = mode !== 'total';
+  $('notes-h').textContent = MODE_TITLES[mode];
+  $('lede').textContent = ledeText();
+  $('shints').hidden = !S.showHints;
+  buildSimple(); syncBadge(); run(false);
+}
+function setMode(m) {
+  if (!MODE_TITLES[m] || m === mode) return;
+  mode = m; store.set(MODE_KEY, m);
+  applyMode();
+}
+$('modeseg').addEventListener('change', e => { if (e.target.name === 'mode' && e.target.checked) setMode(e.target.value); });
+$('pane-simple').addEventListener('input', e => {
+  const el = e.target;
+  if (el.id === 'tot') curSimple(true).t = el.value;
+  else if (el.dataset.w !== undefined) curSimple(true).w[+el.dataset.w] = el.value;
+  else return;
+  saveSimple(); showMonth(); run(false);
+});
+$('wadd').addEventListener('click', () => {
+  const d = curSimple(true);
+  if (d.w.length < MAX_WEEKS) d.w.push('');
+  saveSimple(); buildSimple(); run(false);
+  const f = $('w' + (d.w.length - 1)); if (f) f.focus();
+});
+$('wdel').addEventListener('click', () => {
+  const d = curSimple(true);
+  if (d.w.length > 1) d.w.pop();
+  saveSimple(); buildSimple(); run(false);
+});
 function setStatus(state, text) { status.dataset.state = state; stext.textContent = text; }
 
 function showMonth() {
   $('mlabel').textContent = cap(MONTHS[slot.m - 1]) + ' ' + slot.y;
   const isToday = slot.y === today.y && slot.m === today.m;
   $('mtoday').hidden = isToday;
-  const n = Object.keys(months).length;
+  const n = new Set([...Object.keys(months), ...Object.keys(simple)]).size;
   $('mnote').textContent = n > 1 ? n + ' mois enregistrés' : '';
 }
 function goMonth(delta) {
@@ -1101,15 +1274,15 @@ function loadSlot() {
   ta.value = months[slotKey(slot)] || '';
   backup = null; clearBtn.textContent = 'Effacer';
   $('fallback').hidden = true;
-  saveMonths(); showMonth(); syncBadge(); run(false);
+  saveMonths(); saveSimple(); showMonth(); syncBadge(); buildSimple(); run(false);
 }
 $('mprev').addEventListener('click', () => goMonth(-1));
 $('mnext').addEventListener('click', () => goMonth(1));
 $('mtoday').addEventListener('click', () => { persist(); slot = { ...today }; loadSlot(); });
 
 /* ---------- Rendering ---------- */
-function moneyLines(eq) {
-  if (!(S.showPay && S.showDayPay && rate)) return '';
+function moneyLines(eq, force) {
+  if (!(S.showPay && (force || S.showDayPay) && rate)) return '';
   return '<small>' + (S.showBrut ? 'Net ' : '') + fmtMoney(pay(eq, rate)) + '</small>' +
     (S.showBrut ? '<small>Brut ' + fmtMoney(pay(eq, rateB)) + '</small>' : '');
 }
@@ -1140,7 +1313,50 @@ function weekHtml(w) {
     (chips.length ? '<span class="flags">' + chips.join('') + '</span>' : '') + '</div></section>';
 }
 
+function showEmpty(id) { ['emptyDetail', 'emptyWeeks', 'emptyTotal'].forEach(x => { $(x).hidden = x !== id; }); }
+function simpleRowHtml(it, weekly) {
+  const f = [];
+  if (it.invalid) f.push('<span class="chip warn">Valeur non reconnue : ' + esc(String(it.raw).trim()) + '</span>');
+  else if (weekly && it.min > 168 * 60) f.push('<span class="chip warn">Plus de 168 h dans une semaine</span>');
+  return '<li class="row"><span class="day">' + esc(it.label) + '</span><span class="dur">' + fmtDur(it.min) + moneyLines(it.min, true) + '</span>' +
+    (f.length ? '<span class="flags">' + f.join('') + '</span>' : '') + '</li>';
+}
+function renderSimple(res, flash) {
+  const has = res.has, weekly = res.mode === 'weeks';
+  showEmpty(weekly ? 'emptyWeeks' : 'emptyTotal');
+  $('empty').hidden = has;
+  $('ledger').hidden = !has;
+  $('total').hidden = !has;
+  $('acts').hidden = !has || !S.showExport;
+  if (!has) $('fallback').hidden = true;
+
+  res.items.forEach((it, i) => {
+    const el = $(weekly ? 'w' + i : 'tot');
+    if (el) el.setAttribute('aria-invalid', String(it.invalid));
+  });
+  const shown = weekly ? res.items.filter(it => !it.empty) : res.items.filter(it => it.invalid);
+  const html = shown.length
+    ? '<section class="week"><h3 class="week-head">' + (weekly ? 'Heures par semaine' : 'À vérifier') + '</h3><ul class="rows">' + shown.map(it => simpleRowHtml(it, weekly)).join('') + '</ul></section>'
+    : '';
+  $('body').innerHTML = html;
+  $('body').style.borderTop = html ? '' : '0';
+
+  tfig.textContent = fmtDur(res.paid);
+  const side = [];
+  if (S.showPay && rate) {
+    side.push('<span class="pay-label">Net estimé</span><span class="pay-fig">' + fmtMoney(simpleMoney(res, rate)) + '</span>');
+    if (S.showBrut) side.push('<span class="pay-label">Brut estimé</span><span class="pay-fig brut">' + fmtMoney(simpleMoney(res, rateB)) + '</span>');
+    if (!weekly && !res.items[0].invalid) side.push('<span>' + fmtDur(res.paid) + ' × ' + fmtMoney(rate) + ' = <b>' + fmtMoney(simpleMoney(res, rate)) + '</b>' + (S.showBrut ? ' net' : '') + '</span>');
+  }
+  if (S.showDecimal) side.push('<span><b>' + (res.paid / 60).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' h</b> en décimal</span>');
+  if (weekly) side.push('<span>' + pl(res.items.filter(it => !it.empty).length, 'semaine') + ' saisie' + (res.items.filter(it => !it.empty).length > 1 ? 's' : '') + '</span>');
+  tside.innerHTML = side.join('');
+  if (flash) { tfig.classList.remove('fresh'); void tfig.offsetWidth; tfig.classList.add('fresh'); }
+}
+
 function render(res, flash) {
+  if (res.simple) return renderSimple(res, flash);
+  showEmpty('emptyDetail');
   const has = res.real.length > 0;
   $('empty').hidden = has;
   $('ledger').hidden = !has && !(S.showIgnored && res.skipped.length);
@@ -1175,7 +1391,7 @@ function render(res, flash) {
 function run(flash) {
   clearTimeout(timer); clearInterval(tick); timer = tick = null;
   bar.style.transition = 'none'; bar.style.width = '0';
-  last = compute(ta.value, S, slot);
+  last = mode === 'detail' ? compute(ta.value, S, slot) : computeSimple(mode, curSimple());
   render(last, flash !== false);
   setStatus('ok', 'À jour · ' + new Date().toLocaleTimeString('fr-FR'));
 }
@@ -1234,8 +1450,8 @@ async function copyText(txt, okMsg) {
     say('Texte sélectionné : copiez avec Ctrl + C');
   }
 }
-$('copy').addEventListener('click', () => copyText(recapText(last, S, rate, rateB), 'Récap copié'));
-$('copytsv').addEventListener('click', () => copyText(tableText(last, S, rate, rateB), 'Tableau copié : collez-le dans Excel ou Google Sheets'));
+$('copy').addEventListener('click', () => copyText((last.simple ? simpleRecapText : recapText)(last, S, rate, rateB), 'Récap copié'));
+$('copytsv').addEventListener('click', () => copyText((last.simple ? simpleTableText : tableText)(last, S, rate, rateB), 'Tableau copié : collez-le dans Excel ou Google Sheets'));
 
 /* ---------- Rates ---------- */
 const fmtInput = x => x ? x.toFixed(2).replace('.', ',') : '';
@@ -1268,6 +1484,16 @@ function applyTheme() {
   ['auto', 'light', 'dark'].forEach(t => { $('ic-' + t).hidden = t !== S.theme; });
 }
 function ledeText() {
+  if (mode === 'weeks') {
+    return 'Notez le nombre d\'heures de chaque semaine : le total et le montant se calculent tout de suite.' +
+      (S.showPay ? ' Indiquez votre taux horaire net ou brut : l\'autre se calcule tout seul.' : '') +
+      ' Choisissez ce qui s\'affiche dans Paramètres.';
+  }
+  if (mode === 'total') {
+    return 'Notez votre total d\'heures du mois : il est multiplié par votre taux horaire.' +
+      (S.showPay ? ' Indiquez votre taux net ou brut : l\'autre se calcule tout seul.' : '') +
+      ' Choisissez ce qui s\'affiche dans Paramètres.';
+  }
   const when = S.delay === 0 ? 'quand vous appuyez sur Calculer'
     : S.delay < 1 ? 'pendant que vous écrivez'
     : S.delay + ' secondes après votre dernière frappe, ou tout de suite avec le bouton';
@@ -1284,6 +1510,7 @@ function applySettings() {
   $('lede').textContent = ledeText();
   $('lede').hidden = !S.showIntro;
   $('hints').hidden = !S.showHints;
+  $('shints').hidden = !S.showHints;
   $('monthbar').hidden = !S.history;
   $('rates').hidden = !S.showPay;
   $('rateb').closest('.rate').hidden = !S.showBrut;
@@ -1338,11 +1565,12 @@ function setWipe(on) {
   $('wipe').textContent = on ? 'Oui, tout effacer' : 'Tout effacer';
   $('wipe').classList.toggle('danger', on);
   $('wipeNo').hidden = !on;
-  $('wipeDesc').textContent = on ? 'Les horaires de tous les mois seront perdus. Confirmez ou annulez.' : 'Efface les horaires de tous les mois et les taux horaires.';
+  $('wipeDesc').textContent = on ? 'Les horaires et les heures de tous les mois seront perdus. Confirmez ou annulez.' : 'Efface les horaires et les heures de tous les mois, et les taux horaires.';
 }
 $('wipe').addEventListener('click', () => {
   if (!wiping) { setWipe(true); return; }
   months = {}; store.del(MONTHS_KEY); store.del(OLD_KEY);
+  simple = {}; store.del(SIMPLE_KEY);
   store.del(RATE_KEY); store.del(RATEB_KEY); store.del(SRC_KEY);
   $('rate').value = ''; $('rateb').value = ''; src = 'net'; rate = rateB = 0;
   slot = { ...today };
@@ -1381,6 +1609,9 @@ window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
 /* ---------- Start ---------- */
 (function init() {
   try { S = sanitize(JSON.parse(store.get(SET_KEY))); } catch (e) { S = sanitize(null); }
+  try { simple = cleanSimple(JSON.parse(store.get(SIMPLE_KEY))); } catch (e) { simple = {}; }
+  const savedMode = store.get(MODE_KEY);
+  mode = MODE_TITLES[savedMode] ? savedMode : 'detail';
   let saved = null;
   try { saved = JSON.parse(store.get(MONTHS_KEY)); } catch (e) {}
   if (saved && typeof saved === 'object') months = saved;
@@ -1402,8 +1633,8 @@ window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
   applySettings();
   showTab(location.hash.slice(1));
   ta.value = months[slotKey(slot)] || '';
-  saveMonths(); showMonth(); syncBadge();
-  run(false);
+  saveMonths(); showMonth();
+  applyMode();
 })();
 </script>
 
