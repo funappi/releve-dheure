@@ -10,6 +10,24 @@ Un outil autonome et minimaliste pour noter ses horaires de travail, calculer se
 
 ---
 
+**[Ouvrir l'application](https://funappi.github.io/releve-dheure/)**
+
+<p align="center">
+  <img src="docs/apercu.png" alt="Relevé d'heures : saisie des horaires à gauche, relevé calculé à droite" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/sombre.png" alt="Thème sombre" width="440">
+  <img src="docs/parametres.png" alt="Onglet Paramètres" width="440">
+</p>
+
+## Sommaire
+
+- [Présentation](#présentation)
+- [Fonctionnalités](#fonctionnalités)
+- [Utilisation](#utilisation)
+- [Licence](#licence)
+
 ## Présentation
 
 L'application fonctionne comme un bloc-notes. Tu saisis tes horaires ligne par ligne, et le relevé du mois se calcule tout seul : durée de chaque journée, sous-total par semaine, total du mois et rémunération estimée.
